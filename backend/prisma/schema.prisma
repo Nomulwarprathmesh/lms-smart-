@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  HOD
+  TEACHER
+  STUDENT
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  loginId            String    @unique
+  phone              String?
+  passwordHash       String
+  name               String
+  role               Role
+  isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(false)
+  lastLoginAt        DateTime?
+  createdById        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  student      Student?
+  teacher      Teacher?
+  adminProfile AdminProfile?
+  hodProfile   HodProfile?
+}
+
+model Department {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  classes    ClassRoom[]
+  subjects   Subject[]
+  hodProfile HodProfile?
+}
+
+model ClassRoom {
+  id           String     @id @default(cuid())
+  name         String // example: "MCA-1 A"
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  students     Student[]
+
+  @@unique([departmentId, name])
+}
+
+model Subject {
+  id           String     @id @default(cuid())
+  name         String
+  code         String     @unique
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+}
+
+model Student {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rollNo    String    @unique
+  classId   String
+  classRoom ClassRoom @relation(fields: [classId], references: [id])
+
+  // Face enrolment, used later for attendance. Consent is required for biometric data.
+  faceEnrolled    Boolean   @default(false)
+  faceTemplateRef String? // reference to a stored embedding, never the raw photo
+  faceConsentAt   DateTime?
+}
+
+model Teacher {
+  id         String @id @default(cuid())
+  userId     String @unique
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeId String @unique
+}
+
+model AdminProfile {
+  id          String @id @default(cuid())
+  userId      String @unique
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  designation String @default("University Admin")
+}
+
+model HodProfile {
+  id            String     @id @default(cuid())
+  userId        String     @unique
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeId    String     @unique
+  departmentId  String     @unique
+  department    Department @relation(fields: [departmentId], references: [id])
+  designation   String
+  qualification String?
+  joiningDate   DateTime
+  createdAt     DateTime   @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  action    String
+  entity    String
+  entityId  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+}
